@@ -42,16 +42,28 @@ if(NOT DEFINED ENV{SYSTEMC_HOME})
 	add_executable(TransactionExample main.cpp)
     target_link_libraries(TransactionExample systemc-cci::systemc-cci systemc-scv::systemc-scv SystemC::systemc)
     
+    # Add the playground target
+    add_executable(playground 
+        src/bus.cpp
+        src/design.cpp
+        src/testbench.cpp
+    )
+    target_link_libraries(playground systemc-cci::systemc-cci systemc-scv::systemc-scv SystemC::systemc)
+    
 else()
 	find_package(SystemC REQUIRED)
 	add_executable(TransactionExample main.cpp)
     target_include_directories(TransactionExample PUBLIC ${SystemC_INCLUDE_DIRS} ${SCV_INCLUDE_DIRS})
     target_link_directories(TransactionExample PUBLIC ${SCV_LIBRARY_DIRS} ${SystemC_LIBRARY_DIRS})
 	target_link_libraries(TransactionExample PUBLIC ${SCV_LIBRARIES} ${SystemC_LIBRARIES})
-endif()
 
-# CTest is a testing tool that can be used to test your project.
-# enable_testing()
-# add_test(NAME example
-#          WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
-#          COMMAND example)
+    # Add the playground target
+    add_executable(playground 
+        src/bus.cpp
+        src/design.cpp
+        src/testbench.cpp
+    )
+    target_include_directories(playground PUBLIC ${SystemC_INCLUDE_DIRS} ${SCV_INCLUDE_DIRS})
+    target_link_directories(playground PUBLIC ${SCV_LIBRARY_DIRS} ${SystemC_LIBRARY_DIRS})
+    target_link_libraries(playground PUBLIC ${SCV_LIBRARIES} ${SystemC_LIBRARIES})
+endif()
