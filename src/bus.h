@@ -9,7 +9,6 @@ using namespace sc_dt;
 
 class bus : public sc_module, public initiator_if {
 public:
-  sc_in<bool> clock;
   sc_port<target_if, 2> target_ports;
   void write(const sc_uint<12> address, const sc_uint<12> data,
              int id) override;

@@ -29,7 +29,6 @@ public:
     // Bind clock
     init1->clock(clock);
     init2->clock(clock);
-    bus1->clock(clock);
 
     // Bind initiators to bus
     init1->initiator_port(*bus1);
