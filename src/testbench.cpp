@@ -21,7 +21,7 @@ SC_MODULE(test_driver) {
 
   test_driver(sc_module_name name, generic_initiator * i1,
               generic_initiator * i2)
-      : sc_module(name), init1(i1), init2(i2), gen(rd()), addr_dist(0, 0x100),
+      : sc_module(name), init1(i1), init2(i2), gen(rd()), addr_dist(0, 0x400),
         data_dist(0, 0xFFF) {
     SC_THREAD(test_thread_1);
     sensitive << clock.pos();
@@ -55,7 +55,7 @@ SC_MODULE(test_driver) {
 
     // Generate transactions with 7ns delay
     for (int i = 0; i < 8; i++) {
-      sc_uint<12> addr = 0x400 + addr_dist(gen);
+      sc_uint<12> addr = 0x600 + addr_dist(gen);
       sc_uint<12> data = data_dist(gen);
 
       init2->write(addr, data);

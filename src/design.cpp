@@ -10,8 +10,8 @@ class toplevel : sc_module {
 public:
   sc_clock clock;
   bus *bus1;
-  mem<256> *target1;
-  mem<256> *target2;
+  mem<1024> *target1;
+  mem<1024> *target2;
   generic_initiator *init1;
   generic_initiator *init2;
 
@@ -19,8 +19,8 @@ public:
       : sc_module(name), clock("clock", 2, SC_NS) {
     // Create modules
     bus1 = new bus("bus", 2); // Now handling 2 initiators
-    target1 = new mem<256>("target1");
-    target2 = new mem<256>("target2");
+    target1 = new mem<1024>("target1");
+    target2 = new mem<1024>("target2");
 
     // Create initiators
     init1 = new generic_initiator("init1", 0);
@@ -39,8 +39,8 @@ public:
     bus1->target_ports(*target2);
 
     // Register address ranges with bus
-    bus1->register_target(0x100, 0x100);
-    bus1->register_target(0x400, 0x100);
+    bus1->register_target(0x100, 0x400);
+    bus1->register_target(0x600, 0x400);
   }
 
   ~toplevel() {
