@@ -36,6 +36,7 @@ void bus::write(sc_uint<12> address, sc_uint<12> data, int id) {
   int port_idx = find_port(address);
   if (port_idx >= 0) {
     Logger::logTransaction("Bus", "Write Forward", address, data, id);
+    // TODO: calculate effective address
     target_ports[port_idx]->target_write(address, data);
   } else {
     Logger::logError("Bus", "Failed to find target port for write operation");
@@ -74,23 +75,11 @@ void bus::control_bus() {
 }
 
 int bus::find_port(sc_uint<12> address) {
-  std::stringstream ss;
-  ss << "Searching port for address 0x" << std::hex << address;
-  // Logger::log(LogLevel::DEBUG, "Bus", ss.str());
-
   int idx = 0;
   for (auto it = address_map.begin(); it != address_map.end(); ++it, ++idx) {
     sc_uint<12> start = it->first;
     sc_uint<12> size = it->second;
-
-    std::stringstream entry_ss;
-    entry_ss << "Checking range 0x" << std::hex << start << " - 0x"
-             << (start + size);
-    // Logger::log(LogLevel::DEBUG, "Bus", entry_ss.str());
-    //
     if (address >= start && address < (start + size)) {
-      // Logger::log(LogLevel::DEBUG, "Bus",
-      //             "Found matching port: " + std::to_string(idx));
       return idx;
     }
   }
