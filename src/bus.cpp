@@ -74,8 +74,6 @@ void bus::control_bus() {
       }
     }
     if (highest > -1) {
-      Logger::log(LogLevel::DEBUG, "Bus",
-                  "Granting access to initiator " + std::to_string(highest));
       proceed[highest].notify();
     }
   }
