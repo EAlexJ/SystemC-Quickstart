@@ -3,3 +3,6 @@
 /.settings/
 build
 .venv
+.cache
+.vscode/
+misc/*

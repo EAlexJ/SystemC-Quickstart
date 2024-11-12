@@ -47,6 +47,7 @@ if(NOT DEFINED ENV{SYSTEMC_HOME})
         src/bus.cpp
         src/design.cpp
         src/testbench.cpp
+		src/initiator.cpp
     )
     target_link_libraries(playground systemc-cci::systemc-cci systemc-scv::systemc-scv SystemC::systemc)
     
@@ -62,6 +63,7 @@ else()
         src/bus.cpp
         src/design.cpp
         src/testbench.cpp
+		src/initiator.cpp
     )
     target_include_directories(playground PUBLIC ${SystemC_INCLUDE_DIRS} ${SCV_INCLUDE_DIRS})
     target_link_directories(playground PUBLIC ${SCV_LIBRARY_DIRS} ${SystemC_LIBRARY_DIRS})

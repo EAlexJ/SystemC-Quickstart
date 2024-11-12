@@ -1,70 +1,54 @@
-#include <systemc>
 #include "bus.h"
+#include "initiator.h"
+#include "target.h"
+#include <systemc>
 
-bus::bus(const sc_core::sc_module_name& name, int n_initiators) : 
-	sc_module(name),
-	num_initiators(n_initiators),
-	request("request_signals", n_initiators),
-	proceed("proceed_events", n_initiators)
-	{
-    
-    SC_HAS_PROCESS(bus);
-    SC_THREAD(control_bus);
-    sensitive << clock.neg();
-}
-void bus::register_target(sc_core::sc_port<target_if>& port, sc_uint<8> start, sc_uint<8> size) {
-    address_map[start] = std::make_pair(&port, size);
-}
-inline void bus::arbitrate(int id){
-  request[id] = true;
-  wait(proceed[id]);
-  request[id] = false;
-}
-void bus::write(sc_uint<8> address, sc_uint<12> data, int id) {
-    arbitrate(id);
-    auto* target_port = find_port(address);
-    if (target_port) {
-        (*target_port)->target_write(address, data);
-    } else {
-        SC_REPORT_ERROR("MyBus", "Failed to find target port for write operation");
-    }
-}
+using namespace sc_core;
+using namespace sc_dt;
 
-void bus::read(sc_uint<8> address, sc_uint<12>& data, int id) {
-    arbitrate(id);
-    auto* target_port = find_port(address);
-    if (target_port) {
-        (*target_port)->target_read(address, data);
-    } else {
-        SC_REPORT_ERROR("MyBus", "Failed to find target port for read operation");
-    }
-}
+class toplevel : sc_module {
+public:
+  sc_clock clock;
+  bus *bus1;
+  mem<256> *target1;
+  mem<256> *target2;
+  generic_initiator *init1;
+  generic_initiator *init2;
 
-void bus::control_bus(){
-  int highest;
-    for(;;){
-      wait();
-      highest = -1;
-      for(int i= 0; i<num_initiators; i++){
-          if(request[i])
-             highest = i;
-      }
-      if(highest > -1)
-        proceed[highest].notify();
-    }
-}
-sc_port<target_if>* bus::find_port(sc_uint<8> address) {
-    for (auto it = address_map.begin(); it != address_map.end(); ++it) {
-        sc_uint<8> start = it->first;
-        sc_core::sc_port<target_if>* port = it->second.first;
-        sc_uint<8> size = it->second.second;
-        if (address >= start && address < (start + size)) {
-            return port;
-        }
-    }
-    SC_REPORT_ERROR("MyBus", "Address out of range");
-  	return nullptr;
-}
-void bus::end_of_elaboration(){
-	return;
-}
+  toplevel(const sc_module_name &name)
+      : sc_module(name), clock("clock", 2, SC_NS) {
+    // Create modules
+    bus1 = new bus("bus", 2); // Now handling 2 initiators
+    target1 = new mem<256>("target1", 0x100);
+    target2 = new mem<256>("target2", 0x400);
+
+    // Create initiators
+    init1 = new generic_initiator("init1", 0);
+    init2 = new generic_initiator("init2", 1);
+
+    // Bind clock
+    init1->clock(clock);
+    init2->clock(clock);
+    bus1->clock(clock);
+
+    // Bind initiators to bus
+    init1->initiator_port(*bus1);
+    init2->initiator_port(*bus1);
+
+    // Bind bus to targets
+    bus1->target_ports.bind(*target1);
+    bus1->target_ports.bind(*target2);
+
+    // Register address ranges with bus
+    bus1->register_target(0x100, 0x100);
+    bus1->register_target(0x400, 0x100);
+  }
+
+  ~toplevel() {
+    delete bus1;
+    delete target1;
+    delete target2;
+    delete init1;
+    delete init2;
+  }
+};
