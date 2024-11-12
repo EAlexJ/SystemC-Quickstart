@@ -36,8 +36,8 @@ public:
     init2->initiator_port(*bus1);
 
     // Bind bus to targets
-    bus1->target_ports.bind(*target1);
-    bus1->target_ports.bind(*target2);
+    bus1->target_ports(*target1);
+    bus1->target_ports(*target2);
 
     // Register address ranges with bus
     bus1->register_target(0x100, 0x100);
