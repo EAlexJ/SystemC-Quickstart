@@ -1,6 +1,7 @@
 #include "bus.h"
 #include "logger.h"
 #include <ios>
+#include <sysc/kernel/sc_time.h>
 #include <systemc>
 #include <utility>
 
@@ -10,7 +11,6 @@ bus::bus(const sc_core::sc_module_name &name, int n_initiators)
       proceed("proceed_events", n_initiators) {
   SC_HAS_PROCESS(bus);
   SC_THREAD(control_bus);
-  sensitive << clock.neg();
   Logger::log(LogLevel::INFO, "Bus",
               "Initialized with " + std::to_string(n_initiators) +
                   " initiators");
@@ -25,6 +25,7 @@ void bus::register_target(sc_uint<12> start, sc_uint<12> size) {
 }
 
 inline void bus::arbitrate(int id) {
+  control_bus_e.notify(SC_ZERO_TIME);
   Logger::logBusArbitration(id, false);
   request[id] = true;
   wait(proceed[id]);
@@ -61,12 +62,16 @@ void bus::read(sc_uint<12> address, sc_uint<12> &data, int id) {
 
 void bus::control_bus() {
   int highest;
-  for (;;) {
-    wait();
+  while (1) {
+    wait(control_bus_e);
     highest = -1;
     for (int i = 0; i < num_initiators; i++) {
-      if (request[i])
+      if (request[i]) {
+        if (highest != -1)
+          // re-raise event in case more than one has requested
+          control_bus_e.notify(SC_ZERO_TIME);
         highest = i;
+      }
     }
     if (highest > -1) {
       Logger::log(LogLevel::DEBUG, "Bus",

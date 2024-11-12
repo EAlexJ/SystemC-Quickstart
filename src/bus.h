@@ -23,6 +23,7 @@ private:
   int num_initiators;
   sc_vector<sc_signal<bool>> request;
   sc_vector<sc_event> proceed;
+  sc_event control_bus_e;
   std::vector<std::pair<sc_uint<12>, sc_uint<12>>>
       address_map; // start_addr -> size
   void end_of_elaboration() override;
