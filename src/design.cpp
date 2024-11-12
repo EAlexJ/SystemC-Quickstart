@@ -19,8 +19,8 @@ public:
       : sc_module(name), clock("clock", 2, SC_NS) {
     // Create modules
     bus1 = new bus("bus", 2); // Now handling 2 initiators
-    target1 = new mem<256>("target1", 0x100);
-    target2 = new mem<256>("target2", 0x400);
+    target1 = new mem<256>("target1");
+    target2 = new mem<256>("target2");
 
     // Create initiators
     init1 = new generic_initiator("init1", 0);

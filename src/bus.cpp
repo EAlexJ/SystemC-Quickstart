@@ -2,6 +2,7 @@
 #include "logger.h"
 #include <ios>
 #include <systemc>
+#include <utility>
 
 bus::bus(const sc_core::sc_module_name &name, int n_initiators)
     : sc_module(name), num_initiators(n_initiators),
@@ -20,7 +21,7 @@ void bus::register_target(sc_uint<12> start, sc_uint<12> size) {
   ss << "Registering target at 0x" << std::hex << start << " with size 0x"
      << size;
   Logger::log(LogLevel::INFO, "Bus", ss.str());
-  address_map[start] = size;
+  address_map.push_back(std::make_pair(start, size));
 }
 
 inline void bus::arbitrate(int id) {
@@ -36,8 +37,8 @@ void bus::write(sc_uint<12> address, sc_uint<12> data, int id) {
   int port_idx = find_port(address);
   if (port_idx >= 0) {
     Logger::logTransaction("Bus", "Write Forward", address, data, id);
-    // TODO: calculate effective address
-    target_ports[port_idx]->target_write(address, data);
+    sc_uint<12> eff_addr = address - address_map[port_idx].first;
+    target_ports[port_idx]->target_write(eff_addr, data);
   } else {
     Logger::logError("Bus", "Failed to find target port for write operation");
     SC_REPORT_ERROR("MyBus", "Failed to find target port for write operation");
@@ -49,7 +50,8 @@ void bus::read(sc_uint<12> address, sc_uint<12> &data, int id) {
   int port_idx = find_port(address);
   if (port_idx >= 0) {
     Logger::logTransaction("Bus", "Read Forward", address, data, id);
-    target_ports[port_idx]->target_read(address, data);
+    sc_uint<12> eff_addr = address - address_map[port_idx].first;
+    target_ports[port_idx]->target_read(eff_addr, data);
     Logger::logTransaction("Bus", "Read Response", address, data, id);
   } else {
     Logger::logError("Bus", "Failed to find target port for read operation");

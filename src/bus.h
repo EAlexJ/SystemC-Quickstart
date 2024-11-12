@@ -2,7 +2,6 @@
 #define BUS_H
 #include "initiator.h"
 #include "target.h"
-#include <map>
 #include <systemc>
 
 using namespace sc_core;
@@ -24,7 +23,8 @@ private:
   int num_initiators;
   sc_vector<sc_signal<bool>> request;
   sc_vector<sc_event> proceed;
-  std::map<sc_uint<12>, sc_uint<12>> address_map; // start_addr -> size
+  std::vector<std::pair<sc_uint<12>, sc_uint<12>>>
+      address_map; // start_addr -> size
   void end_of_elaboration() override;
   void arbitrate(int id);
 };
