@@ -96,6 +96,30 @@ int bus::find_port(sc_uint<12> address) {
 }
 
 void bus::end_of_elaboration() {
-  Logger::log(LogLevel::INFO, "Bus", "End of elaboration reached");
-  return;
+  // Initialize signals
+  for (int i = 0; i < num_initiators; i++) {
+    request[i].write(false);
+  }
+
+  // Check for overlapping memory ranges
+  for (size_t i = 0; i < address_map.size(); i++) {
+    for (size_t j = i + 1; j < address_map.size(); j++) {
+      uint64_t start1 = address_map[i].first;
+      uint64_t end1 = start1 + address_map[i].second - 1;
+      uint64_t start2 = address_map[j].first;
+      uint64_t end2 = start2 + address_map[j].second - 1;
+
+      // Check for overlap
+      if (start1 <= end2 && start2 <= end1) {
+        std::stringstream ss;
+        ss << "Memory range overlap detected between targets " << i << " and "
+           << j << ":\n"
+           << "Target " << i << ": 0x" << std::hex << start1 << " - 0x" << end1
+           << "\n"
+           << "Target " << j << ": 0x" << std::hex << start2 << " - 0x" << end2;
+        Logger::logError("Bus", ss.str());
+        SC_REPORT_ERROR("Bus", "Overlapping memory ranges detected");
+      }
+    }
+  }
 }
