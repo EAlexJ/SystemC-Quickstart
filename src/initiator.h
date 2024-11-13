@@ -1,20 +1,16 @@
 #ifndef INITIATOR_H
 #define INITIATOR_H
+
 #include <systemc>
+#include <tlm>
+#include <tlm_utils/simple_initiator_socket.h>
 
 using namespace sc_core;
 using namespace sc_dt;
 
-class initiator_if : virtual public sc_interface {
-public:
-  virtual void write(const sc_uint<12> address, const sc_uint<12> data,
-                     int id) = 0;
-  virtual void read(const sc_uint<12> address, sc_uint<12> &data, int id) = 0;
-};
-
 class generic_initiator : public sc_module {
 public:
-  sc_port<initiator_if> initiator_port;
+  tlm_utils::simple_initiator_socket<generic_initiator> initiator_socket;
   sc_in<bool> clock;
 
   SC_HAS_PROCESS(generic_initiator);
@@ -25,6 +21,7 @@ public:
 
 private:
   const int m_id;
+  sc_time timing_annotation;
 };
 
 #endif

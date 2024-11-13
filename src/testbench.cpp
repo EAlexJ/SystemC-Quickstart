@@ -30,7 +30,6 @@ SC_MODULE(test_driver) {
   }
 
   void test_thread_1() {
-
     // Wait for a few cycles before starting
     wait(30, sc_core::SC_NS);
 
@@ -39,17 +38,26 @@ SC_MODULE(test_driver) {
       sc_uint<12> addr = 0x100 + addr_dist(gen);
       sc_uint<12> data = data_dist(gen);
 
+      // Write transaction
       init1->write(addr, data);
       wait(5, SC_NS);
 
+      // Read back and verify
       sc_uint<12> read_data;
       init1->read(addr, read_data);
+
+      if (read_data != data) {
+        std::stringstream ss;
+        ss << "Data mismatch at address 0x" << std::hex << addr << ": wrote 0x"
+           << data << ", read 0x" << read_data;
+        Logger::logError("Test Driver 1", ss.str());
+      }
+
       wait(5, SC_NS);
     }
   }
 
   void test_thread_2() {
-
     // Wait for a few cycles before starting
     wait(40, sc_core::SC_NS);
 
@@ -58,11 +66,21 @@ SC_MODULE(test_driver) {
       sc_uint<12> addr = 0x600 + addr_dist(gen);
       sc_uint<12> data = data_dist(gen);
 
+      // Write transaction
       init2->write(addr, data);
       wait(7, SC_NS);
 
+      // Read back and verify
       sc_uint<12> read_data;
       init2->read(addr, read_data);
+
+      if (read_data != data) {
+        std::stringstream ss;
+        ss << "Data mismatch at address 0x" << std::hex << addr << ": wrote 0x"
+           << data << ", read 0x" << read_data;
+        Logger::logError("Test Driver 2", ss.str());
+      }
+
       wait(7, SC_NS);
     }
   }

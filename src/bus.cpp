@@ -1,98 +1,102 @@
 #include "bus.h"
 #include "logger.h"
-#include <ios>
-#include <sysc/kernel/sc_time.h>
-#include <systemc>
-#include <utility>
+#include <sstream>
 
-bus::bus(const sc_core::sc_module_name &name, int n_initiators)
-    : sc_module(name), num_initiators(n_initiators),
-      request("request_signals", n_initiators),
-      proceed("proceed_events", n_initiators) {
-  SC_HAS_PROCESS(bus);
+bus::bus(const sc_module_name &name, int n_initiators)
+    : sc_module(name), target_socket("target_socket"),
+      num_initiators(n_initiators), request("request", n_initiators),
+      proceed("proceed", n_initiators) {
+
+  // Register callback for multi-passthrough socket
+  target_socket.register_b_transport(this, &bus::b_transport);
+
+  // Initialize signals
+  for (int i = 0; i < n_initiators; i++) {
+    request[i].write(false);
+  }
+
   SC_THREAD(control_bus);
-  Logger::log(LogLevel::INFO, "Bus",
-              "Initialized with " + std::to_string(n_initiators) +
-                  " initiators");
 }
 
-void bus::register_target(sc_uint<12> start, sc_uint<12> size) {
-  std::stringstream ss;
-  ss << "Registering target at 0x" << std::hex << start << " with size 0x"
-     << size;
-  Logger::log(LogLevel::INFO, "Bus", ss.str());
-  address_map.push_back(std::make_pair(start, size));
-}
+void bus::b_transport(int id, tlm::tlm_generic_payload &trans, sc_time &delay) {
+  sc_dt::uint64 addr = trans.get_address();
+  unsigned char *data_ptr = trans.get_data_ptr();
+  unsigned int len = trans.get_data_length();
 
-inline void bus::arbitrate(int id) {
-  control_bus_e.notify(SC_ZERO_TIME);
-  Logger::logBusArbitration(id, false);
-  request[id] = true;
+  // Request bus access using the initiator ID from the socket
+  request[id].write(true);
+  // Notify control bus of new request
+  control_bus_e.notify();
   wait(proceed[id]);
-  request[id] = false;
-  Logger::logBusArbitration(id, true);
-}
 
-void bus::write(sc_uint<12> address, sc_uint<12> data, int id) {
-  arbitrate(id);
-  int port_idx = find_port(address);
-  if (port_idx >= 0) {
-    Logger::logTransaction("Bus", "Write Forward", address, data, id);
-    sc_uint<12> eff_addr = address - address_map[port_idx].first;
-    target_ports[port_idx]->target_write(eff_addr, data);
-  } else {
-    Logger::logError("Bus", "Failed to find target port for write operation");
-    SC_REPORT_ERROR("MyBus", "Failed to find target port for write operation");
+  // Find target port based on address
+  int port = find_port(addr);
+  if (port < 0) {
+    trans.set_response_status(tlm::TLM_ADDRESS_ERROR_RESPONSE);
+    request[id].write(false);
+    return;
   }
-}
 
-void bus::read(sc_uint<12> address, sc_uint<12> &data, int id) {
-  arbitrate(id);
-  int port_idx = find_port(address);
-  if (port_idx >= 0) {
-    Logger::logTransaction("Bus", "Read Forward", address, data, id);
-    sc_uint<12> eff_addr = address - address_map[port_idx].first;
-    target_ports[port_idx]->target_read(eff_addr, data);
-    Logger::logTransaction("Bus", "Read Response", address, data, id);
-  } else {
-    Logger::logError("Bus", "Failed to find target port for read operation");
-    SC_REPORT_ERROR("MyBus", "Failed to find target port for read operation");
-  }
+  // Adjust address for target
+  sc_dt::uint64 local_addr = addr - address_map[port].first;
+  trans.set_address(local_addr);
+
+  // Forward transaction to appropriate target
+  initiator_socket[port]->b_transport(trans, delay);
+
+  // Restore original address
+  trans.set_address(addr);
+
+  // Release bus and notify control bus to check for other pending requests
+  request[id].write(false);
+  control_bus_e.notify();
 }
 
 void bus::control_bus() {
-  int highest;
-  while (1) {
-    wait(control_bus_e);
-    highest = -1;
-    for (int i = 0; i < num_initiators; i++) {
-      if (request[i]) {
-        if (highest != -1)
-          // re-raise event in case more than one has requested
-          control_bus_e.notify(SC_ZERO_TIME);
-        highest = i;
+  while (true) {
+    bool found = false;
+
+    // Check all initiators for pending requests
+    for (int i = 0; i < num_initiators && !found; i++) {
+      if (request[i].read()) {
+        arbitrate(i);
+        found = true;
       }
     }
-    if (highest > -1) {
-      proceed[highest].notify();
+
+    // If no requests found, wait for notification
+    if (!found) {
+      wait(control_bus_e);
+    }
+    // Add a small delay to allow other initiators to make requests
+    else {
+      wait(SC_ZERO_TIME);
     }
   }
 }
 
-int bus::find_port(sc_uint<12> address) {
-  int idx = 0;
-  for (auto it = address_map.begin(); it != address_map.end(); ++it, ++idx) {
-    sc_uint<12> start = it->first;
-    sc_uint<12> size = it->second;
-    if (address >= start && address < (start + size)) {
-      return idx;
+void bus::arbitrate(int id) {
+  // Grant bus access
+  proceed[id].notify();
+
+  // Wait for request to complete
+  do {
+    wait(SC_ZERO_TIME);
+  } while (request[id].read());
+}
+
+int bus::find_port(const uint64_t addr) {
+  for (size_t i = 0; i < address_map.size(); i++) {
+    if (addr >= address_map[i].first &&
+        addr < (address_map[i].first + address_map[i].second)) {
+      return i;
     }
   }
-
-  Logger::logError("Bus", "Address 0x" + std::to_string(address.to_uint()) +
-                              " out of range");
-  SC_REPORT_ERROR("MyBus", "Address out of range");
   return -1;
+}
+
+void bus::register_target(sc_uint<12> start, sc_uint<12> size) {
+  address_map.push_back(std::make_pair(start, size));
 }
 
 void bus::end_of_elaboration() {

@@ -30,13 +30,13 @@ public:
     init1->clock(clock);
     init2->clock(clock);
 
-    // Bind initiators to bus
-    init1->initiator_port(*bus1);
-    init2->initiator_port(*bus1);
+    // Bind initiators to bus using TLM sockets
+    init1->initiator_socket.bind(bus1->target_socket);
+    init2->initiator_socket.bind(bus1->target_socket);
 
-    // Bind bus to targets
-    bus1->target_ports(*target1);
-    bus1->target_ports(*target2);
+    // Bind bus to targets using TLM sockets
+    bus1->initiator_socket[0].bind(target1->target_socket);
+    bus1->initiator_socket[1].bind(target2->target_socket);
 
     // Register address ranges with bus
     bus1->register_target(0x100, 0x400);
